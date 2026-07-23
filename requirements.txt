@@ -1,9 +1,10 @@
 streamlit==1.48.1
 
-# Core
+# Core Libraries
 numpy==2.3.2
 pandas==2.3.1
 scikit-learn==1.7.1
+scipy==1.16.1
 
 # Database
 supabase==2.17.0
@@ -12,17 +13,20 @@ bcrypt==4.3.0
 # QR Code
 segno==1.6.6
 
-# Images
+# Image Processing
 Pillow==11.3.0
+opencv-python-headless==4.10.0.84
 
 # Face Recognition
 dlib==19.24.6
 face-recognition==1.3.0
 face-recognition-models==0.3.0
 
-# Audio
+# Audio Recognition
 librosa==0.11.0
 resemblyzer==0.1.4
 
 # Utilities
-setuptools>=70.0.0
+setuptools==80.9.0
+wheel
+cmake
