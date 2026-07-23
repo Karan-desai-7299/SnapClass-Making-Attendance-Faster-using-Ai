@@ -12,7 +12,23 @@ from src.database.db import get_all_students, create_student, get_student_subjec
 import time
 
 import pandas as pd
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+IST = timezone(timedelta(hours=5, minutes=30))
+
+
+def format_timestamp_ist(ts_str):
+    if not ts_str:
+        return "N/A"
+    try:
+        dt = datetime.fromisoformat(ts_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc).astimezone(IST)
+        else:
+            dt = dt.astimezone(IST)
+        return dt.strftime("%Y-%m-%d %I:%M %p")
+    except Exception:
+        return ts_str
+
 from src.components.dialog_enroll import enroll_dialog
 from src.components.subject_card import subject_card
 
@@ -117,7 +133,7 @@ def student_dashboard():
         history_data = []
         for log in logs:
             ts = log.get('timestamp')
-            time_str = datetime.fromisoformat(ts).strftime("%Y-%m-%d %I:%M %p") if ts else "N/A"
+            time_str = format_timestamp_ist(ts)
             sub_info = log.get('subjects', {})
             is_p = bool(log.get('is_present', False))
 

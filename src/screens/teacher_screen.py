@@ -14,13 +14,26 @@ from src.pipelines.face_pipeline import predict_attendance
 from src.components.dialog_attendance_results import attendance_result_dialog
 import numpy as np
 
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+IST = timezone(timedelta(hours=5, minutes=30))
 
-import pandas as pd
 
-from src.database.config import supabase
+def get_current_timestamp_ist():
+    return datetime.now(IST).strftime("%Y-%m-%dT%H:%M:%S")
 
-from src.components.dialog_voice_attendance import voice_attendance_dialog
+
+def format_timestamp_ist(ts_str):
+    if not ts_str:
+        return "N/A"
+    try:
+        dt = datetime.fromisoformat(ts_str)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc).astimezone(IST)
+        else:
+            dt = dt.astimezone(IST)
+        return dt.strftime("%Y-%m-%d %I:%M %p")
+    except Exception:
+        return ts_str
 
 
 def teacher_screen():
@@ -29,10 +42,10 @@ def teacher_screen():
 
     if "teacher_data" in st.session_state:
         teacher_dashboard()
-    elif 'teacher_login_type' not in st.session_state or st.session_state.teacher_login_type == "login":
-        teacher_screen_login()
-    elif st.session_state.teacher_login_type == "register":
+    elif "teacher_login_type" in st.session_state and st.session_state.teacher_login_type == 'register':
         teacher_screen_register()
+    else:
+        teacher_screen_login()
 
 
 # ── Dashboard ───────────────────────────────────────────────────────────────
@@ -176,7 +189,7 @@ def teacher_tab_take_attendance():
                     st.warning('No students enrolled in this course.')
                 else:
                     results, attendance_to_log = [], []
-                    current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                    current_timestamp = get_current_timestamp_ist()
 
                     for node in enrolled_students:
                         student = node['students']
@@ -285,7 +298,7 @@ def teacher_tab_attendance_records():
     for r in records:
         ts = r.get('timestamp')
         ts_group = ts.split(".")[0] if ts else "N/A"
-        time_str = datetime.fromisoformat(ts).strftime("%Y-%m-%d %I:%M %p") if ts else "N/A"
+        time_str = format_timestamp_ist(ts)
         sub_name = r['subjects']['name']
         sub_code = r['subjects']['subject_code']
         is_present = bool(r.get('is_present', False))
@@ -325,12 +338,16 @@ def teacher_tab_attendance_records():
         + summary['Total_Count'].astype(str) + ' Students'
     )
 
+    # Sort summary by timestamp ASCENDING first to assign chronological session numbers (1 = 1st attendance taken)
+    summary = summary.sort_values(by='ts_group', ascending=True).reset_index(drop=True)
+    summary['#'] = range(1, len(summary) + 1)
+
+    # Sort descending for display (latest session at top) with fixed chronological # session number
     display_df = (
         summary.sort_values(by='ts_group', ascending=False)
-        [['Time', 'Subject', 'Subject Code', 'Attendance Stats']]
+        [['#', 'Time', 'Subject', 'Subject Code', 'Attendance Stats']]
     ).reset_index(drop=True)
 
-    display_df.insert(0, '#', range(1, len(display_df) + 1))
 
     st.dataframe(display_df, use_container_width=True, hide_index=True)
 

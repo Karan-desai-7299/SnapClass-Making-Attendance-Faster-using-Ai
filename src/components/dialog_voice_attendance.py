@@ -8,7 +8,8 @@ import pandas as pd
 
 
 from src.components.dialog_attendance_results import show_attendance_result
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
+IST = timezone(timedelta(hours=5, minutes=30))
 
 
 @st.dialog('Voice Attendance')
@@ -50,7 +51,8 @@ def voice_attendance_dialog(selected_subject_id):
                 detected_scores = process_bulk_audio(audio_bytes, candidates_dict)
 
                 results, attendance_to_log = [], []
-                current_timestamp = datetime.now().strftime("%Y-%m-%dT%H:%M:%S")
+                current_timestamp = datetime.now(IST).strftime("%Y-%m-%dT%H:%M:%S")
+
 
                 for node in enrolled_students:
                     student = node['students']
