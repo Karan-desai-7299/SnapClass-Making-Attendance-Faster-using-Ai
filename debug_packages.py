@@ -1,10 +1,14 @@
-import pkgutil
+import importlib.util
 import streamlit as st
 
-packages = sorted([m.name for m in pkgutil.iter_modules()])
+st.title("Debug Packages")
 
-st.write("Total packages:", len(packages))
-st.write("supabase installed:", "supabase" in packages)
+spec = importlib.util.find_spec("supabase")
 
-st.write("Packages starting with 's':")
-st.write([p for p in packages if p.startswith("s")])
+st.write("Supabase spec:")
+st.write(spec)
+
+if spec is None:
+    st.error("❌ Supabase package NOT found")
+else:
+    st.success("✅ Supabase package found")
