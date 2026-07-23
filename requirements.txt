@@ -1,31 +1,20 @@
-streamlit
-#frontend librarry
+streamlit==1.48.1
 
-numpy
-pandas
+numpy==2.3.2
+pandas==2.3.1
 
-#face recognation
-scikit-learn
-dlib-bin
-git+https://github.com/ageitgey/face_recognition_models
+scikit-learn==1.7.1
+dlib-bin==20.0.0
 
-setuptools
-#use gethub downlode so use setuptool
+face-recognition
+git+https://github.com/ageitgey/face_recognition_models.git
 
-#database
-supabase
+setuptools==80.9.0
 
-#hashing lab for password
-bcrypt
+supabase==2.17.0
+bcrypt==4.3.0
+segno==1.6.6
+pillow==11.3.0
 
-#use for QR
-segno
-
-#image preprocesing
-pillow
-
-
-
-
-librosa
-resemblyzer
+librosa==0.11.0
+resemblyzer==0.1.4
