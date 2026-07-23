@@ -5,7 +5,7 @@ import io
 
 @st.dialog("Share Class Invitation")
 def share_subject_dialog(subject_name, subject_code):
-    app_domain = "https://snapclass-main-karansinh.streamlit.app"
+    app_domain = "snapclass-main-karansinh787repo.streamlit.app"
     join_url = f"{app_domain}/?join-code={subject_code}"
 
     st.markdown(
