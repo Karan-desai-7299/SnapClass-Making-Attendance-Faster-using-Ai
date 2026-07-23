@@ -1,3 +1,4 @@
+--index-strategy unsafe-best-match
 --extra-index-url https://download.pytorch.org/whl/cpu
 
 streamlit==1.48.1
@@ -7,8 +8,6 @@ pandas==2.3.1
 
 scikit-learn==1.7.1
 dlib-bin==20.0.0
-
-face-recognition
 git+https://github.com/ageitgey/face_recognition_models.git
 
 setuptools==80.9.0
