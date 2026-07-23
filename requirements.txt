@@ -1,0 +1,31 @@
+streamlit
+#frontend librarry
+
+numpy
+pandas
+
+#face recognation
+scikit-learn
+dlib-bin
+git+https://github.com/ageitgey/face_recognition_models
+
+setuptools
+#use gethub downlode so use setuptool
+
+#database
+supabase
+
+#hashing lab for password
+bcrypt
+
+#use for QR
+segno
+
+#image preprocesing
+pillow
+
+
+
+
+librosa
+resemblyzer
