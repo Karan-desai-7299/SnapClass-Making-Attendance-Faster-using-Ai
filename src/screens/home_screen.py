@@ -34,6 +34,7 @@ def home_screen():
                 key='btn_student'
             ):
                 st.session_state['login_type'] = 'student'
+                st.query_params['view'] = 'student'
                 st.rerun()
 
     with col2:
@@ -55,6 +56,8 @@ def home_screen():
                 key='btn_teacher'
             ):
                 st.session_state['login_type'] = 'teacher'
+                st.query_params['view'] = 'teacher'
                 st.rerun()
+
 
     footer_home()

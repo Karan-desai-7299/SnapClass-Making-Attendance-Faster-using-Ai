@@ -68,7 +68,10 @@ def teacher_dashboard():
     with c3:
         if st.button("Logout", type='secondary', key='teacher_logout_btn', use_container_width=True):
             st.session_state['is_logged_in'] = False
-            del st.session_state.teacher_data
+            if 'teacher_data' in st.session_state:
+                del st.session_state.teacher_data
+            st.session_state['login_type'] = None
+            st.query_params.clear()
             st.rerun()
 
 
@@ -76,7 +79,7 @@ def teacher_dashboard():
 
     # ── Tab Navigation ───────────────────────────────────────────────────────
     if "current_teacher_tab" not in st.session_state:
-        st.session_state.current_teacher_tab = 'take_attendance'
+        st.session_state.current_teacher_tab = st.query_params.get('tab', 'take_attendance')
 
     tab1, tab2, tab3 = st.columns(3)
 
@@ -84,18 +87,21 @@ def teacher_dashboard():
         type1 = "primary" if st.session_state.current_teacher_tab == 'take_attendance' else "secondary"
         if st.button('📸 Take Attendance', type=type1, use_container_width=True, key='tab_take_attendance'):
             st.session_state.current_teacher_tab = 'take_attendance'
+            st.query_params['tab'] = 'take_attendance'
             st.rerun()
 
     with tab2:
         type2 = "primary" if st.session_state.current_teacher_tab == 'manage_subjects' else "secondary"
         if st.button('📚 Manage Subjects', type=type2, use_container_width=True, key='tab_manage_subjects'):
             st.session_state.current_teacher_tab = 'manage_subjects'
+            st.query_params['tab'] = 'manage_subjects'
             st.rerun()
 
     with tab3:
         type3 = "primary" if st.session_state.current_teacher_tab == 'attendance_records' else "secondary"
         if st.button('📊 Attendance Records', type=type3, use_container_width=True, key='tab_attendance_records'):
             st.session_state.current_teacher_tab = 'attendance_records'
+            st.query_params['tab'] = 'attendance_records'
             st.rerun()
 
     st.divider()
@@ -410,6 +416,7 @@ def teacher_screen_login():
     with c2:
         if st.button("← Home", type='secondary', key='teacher_login_back_btn', use_container_width=True):
             st.session_state['login_type'] = None
+            st.query_params.clear()
             st.rerun()
 
     st.markdown('<div style="height:1.25rem;"></div>', unsafe_allow_html=True)
@@ -470,7 +477,9 @@ def teacher_screen_register():
     with c2:
         if st.button("← Home", type='secondary', key='teacher_register_back_btn', use_container_width=True):
             st.session_state['login_type'] = None
+            st.query_params.clear()
             st.rerun()
+
 
 
     st.markdown('<div style="height:1.25rem;"></div>', unsafe_allow_html=True)

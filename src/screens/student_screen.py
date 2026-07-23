@@ -50,10 +50,14 @@ def student_dashboard():
     with c3:
         if st.button("Logout", type='secondary', key='student_logout_btn', use_container_width=True):
             st.session_state['is_logged_in'] = False
-            del st.session_state.student_data
+            if 'student_data' in st.session_state:
+                del st.session_state.student_data
+            st.session_state['login_type'] = None
+            st.query_params.clear()
             st.rerun()
 
     st.markdown('<div style="height:1rem;"></div>', unsafe_allow_html=True)
+
 
     hc1, hc2 = st.columns([2, 1], vertical_alignment='center')
     with hc1:
@@ -177,7 +181,9 @@ def student_screen():
     with c2:
         if st.button("← Home", type='secondary', key='student_login_back_btn', use_container_width=True):
             st.session_state['login_type'] = None
+            st.query_params.clear()
             st.rerun()
+
 
     st.markdown('<div style="height:1.25rem;"></div>', unsafe_allow_html=True)
 

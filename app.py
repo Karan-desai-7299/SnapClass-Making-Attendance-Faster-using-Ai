@@ -12,8 +12,14 @@ def main():
         page_title='SnapClass - Making Attendance faster using AI',
         page_icon="https://i.ibb.co/YTYGn5qV/logo.png"
     )
-    if 'login_type' not in st.session_state:
-        st.session_state['login_type'] = None
+    # Restore view and tab state from URL parameters on page refresh
+    view_param = st.query_params.get('view')
+    if view_param in ['teacher', 'student'] and st.session_state.get('login_type') is None:
+        st.session_state['login_type'] = view_param
+
+    tab_param = st.query_params.get('tab')
+    if tab_param in ['take_attendance', 'manage_subjects', 'attendance_records'] and 'current_teacher_tab' not in st.session_state:
+        st.session_state['current_teacher_tab'] = tab_param
 
     match st.session_state['login_type']:
         case 'teacher':
@@ -24,6 +30,7 @@ def main():
 
         case None:
             home_screen()
+
 
     join_code = st.query_params.get('join-code')
     if join_code:
