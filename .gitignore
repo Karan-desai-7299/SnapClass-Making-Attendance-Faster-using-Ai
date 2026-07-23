@@ -1,13 +1,12 @@
 .env
 .vscode
 
-
 *.pyc
 
 .DS_Store
 venv/
 
-.streamlit/
+.streamlit/secrets.toml
 __pycache__/
 
 dist/
