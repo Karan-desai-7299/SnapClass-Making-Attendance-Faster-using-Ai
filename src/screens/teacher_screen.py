@@ -24,8 +24,9 @@ IST = timezone(timedelta(hours=5, minutes=30))
 
 
 
-def get_current_timestamp_ist():
-    return datetime.now(IST).strftime("%Y-%m-%dT%H:%M:%S")
+def get_current_timestamp_utc():
+    """Store attendance timestamps as UTC with timezone marker so display conversion is done exactly once."""
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
 
 def format_timestamp_ist(ts_str):
@@ -208,7 +209,7 @@ def teacher_tab_take_attendance():
                     st.warning('No students enrolled in this course.')
                 else:
                     results, attendance_to_log = [], []
-                    current_timestamp = get_current_timestamp_ist()
+                    current_timestamp = get_current_timestamp_utc()
 
                     for node in enrolled_students:
                         student = node['students']

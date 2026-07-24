@@ -51,7 +51,7 @@ def voice_attendance_dialog(selected_subject_id):
                 detected_scores = process_bulk_audio(audio_bytes, candidates_dict)
 
                 results, attendance_to_log = [], []
-                current_timestamp = datetime.now(IST).strftime("%Y-%m-%dT%H:%M:%S")
+                current_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+00:00")
 
 
                 for node in enrolled_students:
