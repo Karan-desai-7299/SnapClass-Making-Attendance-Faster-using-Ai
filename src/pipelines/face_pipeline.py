@@ -48,13 +48,13 @@ def get_face_embeddings(image_np):
     if max(h, w) > 640:
         s1 = 640.0 / float(max(h, w))
         w1, h1 = int(w * s1), int(h * s1)
-        img_640 = np.array(Image.fromarray(image_np).resize((w1, h1), Image.Resampling.LANCZOS))
+        img_640 = np.array(Image.fromarray(image_np).resize((w1, h1)))
         scales.append((img_640, s1))
 
     if max(h, w) > 1024:
         s2 = 1024.0 / float(max(h, w))
         w2, h2 = int(w * s2), int(h * s2)
-        img_1024 = np.array(Image.fromarray(image_np).resize((w2, h2), Image.Resampling.LANCZOS))
+        img_1024 = np.array(Image.fromarray(image_np).resize((w2, h2)))
         scales.append((img_1024, s2))
 
     scales.append((image_np, 1.0))

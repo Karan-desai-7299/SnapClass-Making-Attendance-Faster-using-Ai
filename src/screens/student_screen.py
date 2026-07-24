@@ -200,36 +200,53 @@ def student_screen():
     photo_source = st.camera_input("Position your face in the center")
 
     if photo_source:
-        img = np.array(Image.open(photo_source).convert('RGB'))
+        photo_bytes = photo_source.getvalue()
 
-        with st.spinner('AI is scanning your face...'):
-            detected, all_ids, num_faces = predict_attendance(img)
+        # Only scan the face if a NEW photo was captured (prevents re-scanning while typing name)
+        if st.session_state.get('scanned_photo_bytes') != photo_bytes:
+            st.session_state.scanned_photo_bytes = photo_bytes
+            img = np.array(Image.open(photo_source).convert('RGB'))
 
-            if num_faces == 0:
-                st.warning('⚠️ No face detected — make sure your face is visible and well-lit.')
-                st.session_state.show_student_registration = False
-            elif num_faces > 1:
-                st.warning('⚠️ Multiple faces detected — please ensure only one person is in frame.')
-                st.session_state.show_student_registration = False
-            else:
-                if detected:
-                    student_id = list(detected.keys())[0]
-                    all_students = get_all_students()
-                    student = next((s for s in all_students if s['student_id'] == student_id), None)
+            with st.spinner('AI is scanning your face...'):
+                detected, all_ids, num_faces = predict_attendance(img)
+                st.session_state.scan_num_faces = num_faces
+                st.session_state.scan_detected = detected
 
-                    if student:
-                        st.session_state.is_logged_in = True
-                        st.session_state.user_role = 'student'
-                        st.session_state.student_data = student
-                        st.session_state.show_student_registration = False
-                        st.toast(f'Welcome back, {student["name"]}! 🎉')
-                        time.sleep(1)
-                        st.rerun()
+                if num_faces == 0:
+                    st.session_state.student_scan_status = 'no_face'
+                    st.session_state.show_student_registration = False
+                elif num_faces > 1:
+                    st.session_state.student_scan_status = 'multi_face'
+                    st.session_state.show_student_registration = False
                 else:
-                    st.info('ℹ️ Face not recognized. Are you a new student? Register below!')
-                    st.session_state.show_student_registration = True
-                    st.session_state.captured_registration_photo = img
+                    if detected:
+                        student_id = list(detected.keys())[0]
+                        all_students = get_all_students()
+                        student = next((s for s in all_students if s['student_id'] == student_id), None)
+
+                        if student:
+                            st.session_state.is_logged_in = True
+                            st.session_state.user_role = 'student'
+                            st.session_state.student_data = student
+                            st.session_state.show_student_registration = False
+                            st.toast(f'Welcome back, {student["name"]}! 🎉')
+                            time.sleep(1)
+                            st.rerun()
+                    else:
+                        st.session_state.student_scan_status = 'unrecognized'
+                        st.session_state.show_student_registration = True
+                        st.session_state.captured_registration_photo = img
+
+        scan_status = st.session_state.get('student_scan_status')
+        if scan_status == 'no_face':
+            st.warning('⚠️ No face detected — make sure your face is visible and well-lit.')
+        elif scan_status == 'multi_face':
+            st.warning('⚠️ Multiple faces detected — please ensure only one person is in frame.')
+        elif scan_status == 'unrecognized':
+            st.info('ℹ️ Face not recognized. Please complete registration below to create your account!')
     else:
+        st.session_state.scanned_photo_bytes = None
+        st.session_state.student_scan_status = None
         st.session_state.show_student_registration = False
 
     if st.session_state.get('show_student_registration'):
