@@ -39,21 +39,22 @@ def get_face_embeddings(image_np):
     image_np = np.ascontiguousarray(image_np, dtype=np.uint8)
     h, w = image_np.shape[:2]
 
+    # Create scale pyramid so all face sizes (large front-row & small back-row) are captured!
     scales = [(image_np, 1.0)]
 
-    # Add downscaled version for high-res webcam/classroom photos
-    if max(h, w) > 640:
-        s1 = 640.0 / float(max(h, w))
+    if max(h, w) > 800:
+        s1 = 800.0 / float(max(h, w))
         w1, h1 = int(w * s1), int(h * s1)
-        img_640 = np.array(Image.fromarray(image_np).resize((w1, h1)))
-        scales.append((img_640, s1))
+        img_800 = np.array(Image.fromarray(image_np).resize((w1, h1)))
+        scales.append((img_800, s1))
 
     faces_found = []
 
     for img_scaled, scale_factor in scales:
         try:
-            # Scan scale 0 and upscaled scale 1 to catch all face sizes
-            rects = list(detector(img_scaled, 0)) + list(detector(img_scaled, 1))
+            rects = list(detector(img_scaled, 0))
+            if len(rects) == 0 or max(h, w) <= 1000:
+                rects += list(detector(img_scaled, 1))
 
             for rect in rects:
                 if scale_factor != 1.0:
@@ -67,7 +68,7 @@ def get_face_embeddings(image_np):
         except Exception:
             continue
 
-    # Remove duplicate bounding boxes via Intersection-over-Union (IoU)
+    # IoU Deduplication
     unique_faces = []
     for face in faces_found:
         is_dup = False
@@ -100,7 +101,6 @@ def get_face_embeddings(image_np):
     return encodings
 
 
-@st.cache_resource
 def get_trained_model():
     X = []
     y = []
@@ -113,7 +113,7 @@ def get_trained_model():
     for student in student_db:
         embedding = student.get('face_embedding')
         if embedding:
-            X.append(np.array(embedding))
+            X.append(np.array(embedding, dtype=np.float64))
             y.append(int(student.get('student_id')))
 
     if len(X) == 0:
@@ -131,8 +131,7 @@ def get_trained_model():
 
 def train_classifier():
     st.cache_resource.clear()
-    model_data = get_trained_model()
-    return bool(model_data)
+    return True
 
 
 def predict_attendance(class_image_np):
@@ -143,13 +142,21 @@ def predict_attendance(class_image_np):
 
     detected_student = {}
 
-    model_data = get_trained_model()
-
-    if not model_data or not model_data.get('X') or not model_data.get('y'):
+    student_db = get_all_students()
+    if not student_db:
         return detected_student, [], len(encodings)
 
-    X_train = model_data['X']
-    y_train = model_data['y']
+    X_train = []
+    y_train = []
+
+    for student in student_db:
+        emb = student.get('face_embedding')
+        if emb:
+            X_train.append(np.array(emb, dtype=np.float64))
+            y_train.append(int(student.get('student_id')))
+
+    if len(X_train) == 0:
+        return detected_student, [], len(encodings)
 
     all_students = sorted(list(set(y_train)))
     resemblance_threshold = 0.55  # Official dlib 128D face verification threshold
