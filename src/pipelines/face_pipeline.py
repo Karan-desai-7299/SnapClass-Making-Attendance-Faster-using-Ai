@@ -39,50 +39,57 @@ def get_face_embeddings(image_np):
     image_np = np.ascontiguousarray(image_np, dtype=np.uint8)
     h, w = image_np.shape[:2]
 
-    # Build scale pyramid for dlib detection:
-    # 1. Downscaled version (max dimension 640px) - optimal for high-res webcam selfies!
-    # 2. Downscaled version (max dimension 1024px)
-    # 3. Original size
-    scales = []
+    scales = [(image_np, 1.0)]
 
+    # Add downscaled version for high-res webcam/classroom photos
     if max(h, w) > 640:
         s1 = 640.0 / float(max(h, w))
         w1, h1 = int(w * s1), int(h * s1)
         img_640 = np.array(Image.fromarray(image_np).resize((w1, h1)))
         scales.append((img_640, s1))
 
-    if max(h, w) > 1024:
-        s2 = 1024.0 / float(max(h, w))
-        w2, h2 = int(w * s2), int(h * s2)
-        img_1024 = np.array(Image.fromarray(image_np).resize((w2, h2)))
-        scales.append((img_1024, s2))
-
-    scales.append((image_np, 1.0))
-
     faces_found = []
 
     for img_scaled, scale_factor in scales:
         try:
-            rects = detector(img_scaled, 0)
-            if len(rects) == 0:
-                rects = detector(img_scaled, 1)
+            # Scan scale 0 and upscaled scale 1 to catch all face sizes
+            rects = list(detector(img_scaled, 0)) + list(detector(img_scaled, 1))
 
-            if len(rects) > 0:
-                for rect in rects:
-                    if scale_factor != 1.0:
-                        orig_l = int(rect.left() / scale_factor)
-                        orig_t = int(rect.top() / scale_factor)
-                        orig_r = int(rect.right() / scale_factor)
-                        orig_b = int(rect.bottom() / scale_factor)
-                        faces_found.append(dlib.rectangle(orig_l, orig_t, orig_r, orig_b))
-                    else:
-                        faces_found.append(rect)
-                break  # Found faces at this optimal scale!
+            for rect in rects:
+                if scale_factor != 1.0:
+                    orig_l = int(rect.left() / scale_factor)
+                    orig_t = int(rect.top() / scale_factor)
+                    orig_r = int(rect.right() / scale_factor)
+                    orig_b = int(rect.bottom() / scale_factor)
+                    faces_found.append(dlib.rectangle(orig_l, orig_t, orig_r, orig_b))
+                else:
+                    faces_found.append(rect)
         except Exception:
             continue
 
-    encodings = []
+    # Remove duplicate bounding boxes via Intersection-over-Union (IoU)
+    unique_faces = []
     for face in faces_found:
+        is_dup = False
+        for u in unique_faces:
+            xA = max(face.left(), u.left())
+            yA = max(face.top(), u.top())
+            xB = min(face.right(), u.right())
+            yB = min(face.bottom(), u.bottom())
+
+            interArea = max(0, xB - xA + 1) * max(0, yB - yA + 1)
+            boxAArea = (face.right() - face.left() + 1) * (face.bottom() - face.top() + 1)
+            boxBArea = (u.right() - u.left() + 1) * (u.bottom() - u.top() + 1)
+
+            iou = interArea / float(boxAArea + boxBArea - interArea)
+            if iou > 0.3:
+                is_dup = True
+                break
+        if not is_dup:
+            unique_faces.append(face)
+
+    encodings = []
+    for face in unique_faces:
         try:
             shape = sp(image_np, face)
             face_descriptor = facerec.compute_face_descriptor(image_np, shape, 1)  # 128 embedding
@@ -107,7 +114,7 @@ def get_trained_model():
         embedding = student.get('face_embedding')
         if embedding:
             X.append(np.array(embedding))
-            y.append(student.get('student_id'))
+            y.append(int(student.get('student_id')))
 
     if len(X) == 0:
         return None
@@ -145,17 +152,16 @@ def predict_attendance(class_image_np):
     y_train = model_data['y']
 
     all_students = sorted(list(set(y_train)))
-    resemblance_threshold = 0.50  # Balanced dlib face recognition threshold
+    resemblance_threshold = 0.55  # Official dlib 128D face verification threshold
 
     for encoding in encodings:
-        # Calculate Euclidean distances between current face encoding and all registered student embeddings
         distances = [np.linalg.norm(np.array(student_emb) - np.array(encoding)) for student_emb in X_train]
         if distances:
             min_dist_idx = int(np.argmin(distances))
             min_dist = distances[min_dist_idx]
 
             if min_dist <= resemblance_threshold:
-                matched_student_id = y_train[min_dist_idx]
+                matched_student_id = int(y_train[min_dist_idx])
                 detected_student[matched_student_id] = True
 
     return detected_student, all_students, len(encodings)

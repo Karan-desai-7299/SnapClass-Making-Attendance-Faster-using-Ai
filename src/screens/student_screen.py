@@ -220,9 +220,9 @@ def student_screen():
                     st.session_state.show_student_registration = False
                 else:
                     if detected:
-                        student_id = list(detected.keys())[0]
+                        student_id = int(list(detected.keys())[0])
                         all_students = get_all_students()
-                        student = next((s for s in all_students if s['student_id'] == student_id), None)
+                        student = next((s for s in all_students if int(s['student_id']) == student_id), None)
 
                         if student:
                             st.session_state.is_logged_in = True
@@ -232,6 +232,10 @@ def student_screen():
                             st.toast(f'Welcome back, {student["name"]}! 🎉')
                             time.sleep(1)
                             st.rerun()
+                        else:
+                            st.session_state.student_scan_status = 'unrecognized'
+                            st.session_state.show_student_registration = True
+                            st.session_state.captured_registration_photo = img
                     else:
                         st.session_state.student_scan_status = 'unrecognized'
                         st.session_state.show_student_registration = True
