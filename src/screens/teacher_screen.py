@@ -30,15 +30,19 @@ def get_current_timestamp_utc():
 
 
 def format_timestamp_ist(ts_str):
+    """Parse a timestamp string from Supabase and return it formatted as IST.
+    Supabase may strip timezone markers from 'timestamp' columns, so
+    timezone-naive strings are always treated as UTC (server time on Streamlit Cloud).
+    """
     if not ts_str:
         return "N/A"
     try:
         dt = datetime.fromisoformat(ts_str)
         if dt.tzinfo is None:
-            dt = dt.replace(tzinfo=timezone.utc).astimezone(IST)
-        else:
-            dt = dt.astimezone(IST)
-        return dt.strftime("%Y-%m-%d %I:%M %p")
+            # Supabase stripped the +00:00 marker — treat as UTC
+            dt = dt.replace(tzinfo=timezone.utc)
+        dt_ist = dt.astimezone(IST)
+        return dt_ist.strftime("%Y-%m-%d %I:%M %p IST")
     except Exception:
         return ts_str
 
