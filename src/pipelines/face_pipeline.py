@@ -3,6 +3,8 @@ import numpy as np
 import face_recognition_models
 from sklearn.svm import SVC
 import streamlit as st
+import json
+from PIL import Image
 
 from src.database.db import get_all_students
 
@@ -39,7 +41,7 @@ def get_face_embeddings(image_np):
     image_np = np.ascontiguousarray(image_np, dtype=np.uint8)
     h, w = image_np.shape[:2]
 
-    # Create scale pyramid so all face sizes (large front-row & small back-row) are captured!
+    # Create scale pyramid so all face sizes (front-row closeups & back-row group faces) are captured
     scales = [(image_np, 1.0)]
 
     if max(h, w) > 800:
@@ -48,13 +50,18 @@ def get_face_embeddings(image_np):
         img_800 = np.array(Image.fromarray(image_np).resize((w1, h1)))
         scales.append((img_800, s1))
 
+    if max(h, w) > 1200:
+        s2 = 1200.0 / float(max(h, w))
+        w2, h2 = int(w * s2), int(h * s2)
+        img_1200 = np.array(Image.fromarray(image_np).resize((w2, h2)))
+        scales.append((img_1200, s2))
+
     faces_found = []
 
     for img_scaled, scale_factor in scales:
         try:
-            rects = list(detector(img_scaled, 0))
-            if len(rects) == 0 or max(h, w) <= 1000:
-                rects += list(detector(img_scaled, 1))
+            # Scan scale 0 (native) and scale 1 (upscaled pyramid for small faces in group photos)
+            rects = list(detector(img_scaled, 0)) + list(detector(img_scaled, 1))
 
             for rect in rects:
                 if scale_factor != 1.0:
@@ -111,10 +118,19 @@ def get_trained_model():
         return None
 
     for student in student_db:
-        embedding = student.get('face_embedding')
-        if embedding:
-            X.append(np.array(embedding, dtype=np.float64))
-            y.append(int(student.get('student_id')))
+        emb = student.get('face_embedding')
+        if emb:
+            if isinstance(emb, str):
+                try:
+                    emb = json.loads(emb)
+                except Exception:
+                    continue
+            if isinstance(emb, (list, tuple, np.ndarray)) and len(emb) == 128:
+                try:
+                    X.append(np.array(emb, dtype=np.float64))
+                    y.append(int(student.get('student_id')))
+                except Exception:
+                    continue
 
     if len(X) == 0:
         return None
@@ -152,14 +168,23 @@ def predict_attendance(class_image_np):
     for student in student_db:
         emb = student.get('face_embedding')
         if emb:
-            X_train.append(np.array(emb, dtype=np.float64))
-            y_train.append(int(student.get('student_id')))
+            if isinstance(emb, str):
+                try:
+                    emb = json.loads(emb)
+                except Exception:
+                    continue
+            if isinstance(emb, (list, tuple, np.ndarray)) and len(emb) == 128:
+                try:
+                    X_train.append(np.array(emb, dtype=np.float64))
+                    y_train.append(int(student.get('student_id')))
+                except Exception:
+                    continue
 
     if len(X_train) == 0:
         return detected_student, [], len(encodings)
 
     all_students = sorted(list(set(y_train)))
-    resemblance_threshold = 0.60  # Official dlib benchmark standard threshold for 128D face embeddings
+    resemblance_threshold = 0.62  # dlib benchmark standard threshold for 128D embeddings
 
     for encoding in encodings:
         distances = [np.linalg.norm(np.array(student_emb) - np.array(encoding)) for student_emb in X_train]
