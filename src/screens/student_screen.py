@@ -200,52 +200,36 @@ def student_screen():
     photo_source = st.camera_input("Position your face in the center")
 
     if photo_source:
-        photo_bytes = photo_source.getvalue()
-        photo_hash = hash(photo_bytes)
+        img = np.array(Image.open(photo_source).convert('RGB'))
 
-        if st.session_state.get('last_scanned_photo_hash') != photo_hash:
-            st.session_state.last_scanned_photo_hash = photo_hash
-            img = np.array(Image.open(photo_source).convert('RGB'))
+        with st.spinner('AI is scanning your face...'):
+            detected, all_ids, num_faces = predict_attendance(img)
 
-            with st.spinner('AI is scanning your face...'):
-                detected, all_ids, num_faces = predict_attendance(img)
+            if num_faces == 0:
+                st.warning('⚠️ No face detected — make sure your face is visible and well-lit.')
+                st.session_state.show_student_registration = False
+            elif num_faces > 1:
+                st.warning('⚠️ Multiple faces detected — please ensure only one person is in frame.')
+                st.session_state.show_student_registration = False
+            else:
+                if detected:
+                    student_id = list(detected.keys())[0]
+                    all_students = get_all_students()
+                    student = next((s for s in all_students if s['student_id'] == student_id), None)
 
-                st.session_state.scan_detected = detected
-                st.session_state.scan_num_faces = num_faces
-
-                if num_faces == 0:
-                    st.session_state.show_student_registration = False
-                elif num_faces > 1:
-                    st.session_state.show_student_registration = False
+                    if student:
+                        st.session_state.is_logged_in = True
+                        st.session_state.user_role = 'student'
+                        st.session_state.student_data = student
+                        st.session_state.show_student_registration = False
+                        st.toast(f'Welcome back, {student["name"]}! 🎉')
+                        time.sleep(1)
+                        st.rerun()
                 else:
-                    if detected:
-                        student_id = list(detected.keys())[0]
-                        all_students = get_all_students()
-                        student = next((s for s in all_students if s['student_id'] == student_id), None)
-
-                        if student:
-                            st.session_state.is_logged_in = True
-                            st.session_state.user_role = 'student'
-                            st.session_state.student_data = student
-                            st.session_state.show_student_registration = False
-                            st.toast(f'Welcome back, {student["name"]}! 🎉')
-                            time.sleep(1)
-                            st.rerun()
-                    else:
-                        st.session_state.show_student_registration = True
-                        st.session_state.captured_registration_photo = img
-
-        num_faces = st.session_state.get('scan_num_faces', 0)
-        detected = st.session_state.get('scan_detected', {})
-
-        if num_faces == 0:
-            st.warning('⚠️ No face detected — make sure your face is visible and well-lit.')
-        elif num_faces > 1:
-            st.warning('⚠️ Multiple faces detected — please ensure only one person is in frame.')
-        elif not detected:
-            st.info('ℹ️ Face not recognized. Are you a new student? Register below!')
+                    st.info('ℹ️ Face not recognized. Are you a new student? Register below!')
+                    st.session_state.show_student_registration = True
+                    st.session_state.captured_registration_photo = img
     else:
-        st.session_state.last_scanned_photo_hash = None
         st.session_state.show_student_registration = False
 
     if st.session_state.get('show_student_registration'):

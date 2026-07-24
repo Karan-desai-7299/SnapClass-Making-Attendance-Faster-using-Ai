@@ -25,7 +25,7 @@ def load_dlib_models():
 def get_face_embeddings(image_np):
     detector, sp, facerec = load_dlib_models()
 
-    if image_np is None:
+    if image_np is None or image_np.size == 0:
         return []
 
     # Ensure 3-channel RGB uint8 image for dlib
@@ -37,18 +37,52 @@ def get_face_embeddings(image_np):
         image_np = np.repeat(image_np, 3, axis=2)
 
     image_np = np.ascontiguousarray(image_np, dtype=np.uint8)
+    h, w = image_np.shape[:2]
 
-    # Detect faces: scale 0 first (fast & accurate for closeup selfies),
-    # then scale 1 if no face is found (for smaller faces in classroom photos)
-    try:
-        faces = detector(image_np, 0)
-        if len(faces) == 0:
-            faces = detector(image_np, 1)
-    except Exception:
-        faces = []
+    # Build scale pyramid for dlib detection:
+    # 1. Downscaled version (max dimension 640px) - optimal for high-res webcam selfies!
+    # 2. Downscaled version (max dimension 1024px)
+    # 3. Original size
+    scales = []
+
+    if max(h, w) > 640:
+        s1 = 640.0 / float(max(h, w))
+        w1, h1 = int(w * s1), int(h * s1)
+        img_640 = np.array(Image.fromarray(image_np).resize((w1, h1), Image.Resampling.LANCZOS))
+        scales.append((img_640, s1))
+
+    if max(h, w) > 1024:
+        s2 = 1024.0 / float(max(h, w))
+        w2, h2 = int(w * s2), int(h * s2)
+        img_1024 = np.array(Image.fromarray(image_np).resize((w2, h2), Image.Resampling.LANCZOS))
+        scales.append((img_1024, s2))
+
+    scales.append((image_np, 1.0))
+
+    faces_found = []
+
+    for img_scaled, scale_factor in scales:
+        try:
+            rects = detector(img_scaled, 0)
+            if len(rects) == 0:
+                rects = detector(img_scaled, 1)
+
+            if len(rects) > 0:
+                for rect in rects:
+                    if scale_factor != 1.0:
+                        orig_l = int(rect.left() / scale_factor)
+                        orig_t = int(rect.top() / scale_factor)
+                        orig_r = int(rect.right() / scale_factor)
+                        orig_b = int(rect.bottom() / scale_factor)
+                        faces_found.append(dlib.rectangle(orig_l, orig_t, orig_r, orig_b))
+                    else:
+                        faces_found.append(rect)
+                break  # Found faces at this optimal scale!
+        except Exception:
+            continue
 
     encodings = []
-    for face in faces:
+    for face in faces_found:
         try:
             shape = sp(image_np, face)
             face_descriptor = facerec.compute_face_descriptor(image_np, shape, 1)  # 128 embedding
