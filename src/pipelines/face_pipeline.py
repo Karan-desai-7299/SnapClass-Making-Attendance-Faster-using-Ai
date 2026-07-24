@@ -159,7 +159,7 @@ def predict_attendance(class_image_np):
         return detected_student, [], len(encodings)
 
     all_students = sorted(list(set(y_train)))
-    resemblance_threshold = 0.55  # Official dlib 128D face verification threshold
+    resemblance_threshold = 0.60  # Official dlib benchmark standard threshold for 128D face embeddings
 
     for encoding in encodings:
         distances = [np.linalg.norm(np.array(student_emb) - np.array(encoding)) for student_emb in X_train]

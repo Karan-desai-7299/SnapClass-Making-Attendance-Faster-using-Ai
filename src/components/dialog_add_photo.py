@@ -33,7 +33,8 @@ def add_photos_dialog():
     if st.session_state.photo_tab == 'camera':
         cam_photo = st.camera_input('Take a snapshot of the class', key='dialog_cam')
         if cam_photo:
-            st.session_state.attendance_images.append(Image.open(cam_photo))
+            img = Image.open(cam_photo).convert('RGB')
+            st.session_state.attendance_images.append(img)
             st.toast('📸 Photo captured!')
             st.rerun()
 
@@ -45,10 +46,21 @@ def add_photos_dialog():
             key='dialog_upload'
         )
         if uploaded_files:
+            if 'uploaded_file_names' not in st.session_state:
+                st.session_state.uploaded_file_names = set()
+
+            added_count = 0
             for f in uploaded_files:
-                st.session_state.attendance_images.append(Image.open(f))
-            st.toast(f'✅ {len(uploaded_files)} photo(s) uploaded!')
-            st.rerun()
+                file_key = f"{f.name}_{f.size}"
+                if file_key not in st.session_state.uploaded_file_names:
+                    st.session_state.uploaded_file_names.add(file_key)
+                    # Load RGB image into memory synchronously so file handle closure doesn't corrupt image data
+                    img = Image.open(f).convert('RGB').copy()
+                    st.session_state.attendance_images.append(img)
+                    added_count += 1
+
+            if added_count > 0:
+                st.toast(f'✅ {added_count} photo(s) added!')
 
     st.divider()
 
