@@ -193,7 +193,8 @@ def student_screen():
         unsafe_allow_html=True
     )
 
-    show_registration = False
+    if 'show_student_registration' not in st.session_state:
+        st.session_state.show_student_registration = False
 
     # Centered Camera Frame Container
     photo_source = st.camera_input("Position your face in the center")
@@ -206,8 +207,10 @@ def student_screen():
 
             if num_faces == 0:
                 st.warning('⚠️ No face detected — make sure your face is visible and well-lit.')
+                st.session_state.show_student_registration = False
             elif num_faces > 1:
                 st.warning('⚠️ Multiple faces detected — please ensure only one person is in frame.')
+                st.session_state.show_student_registration = False
             else:
                 if detected:
                     student_id = list(detected.keys())[0]
@@ -218,14 +221,16 @@ def student_screen():
                         st.session_state.is_logged_in = True
                         st.session_state.user_role = 'student'
                         st.session_state.student_data = student
+                        st.session_state.show_student_registration = False
                         st.toast(f'Welcome back, {student["name"]}! 🎉')
                         time.sleep(1)
                         st.rerun()
                 else:
                     st.info('ℹ️ Face not recognized. Are you a new student? Register below!')
-                    show_registration = True
+                    st.session_state.show_student_registration = True
+                    st.session_state.captured_registration_photo = img
 
-    if show_registration:
+    if st.session_state.get('show_student_registration'):
         st.markdown('<div style="height:0.75rem;"></div>', unsafe_allow_html=True)
         _, reg_col, _ = st.columns([1, 2, 1])
         with reg_col:
@@ -240,7 +245,7 @@ def student_screen():
 
                 st.markdown(
                     '<p style="font-size:0.85rem;font-weight:700;color:#1E293B;margin:0.75rem 0 0.2rem 0;">🎙️ Voice Enrollment (Optional)</p>'
-                    '<p style="font-size:0.8rem;color:#475569;font-weight:500;margin:0 0 0.5rem 0;">Record a short phrase like "I am present, my name is Akash" for voice attendance.</p>',
+                    '<p style="font-size:0.8rem;color:#475569;font-weight:500;margin:0 0 0.5rem 0;">Record a short phrase like "I am present" for voice attendance.</p>',
                     unsafe_allow_html=True
                 )
 
@@ -255,27 +260,34 @@ def student_screen():
                 if st.button('✨ Create Account', type='primary', use_container_width=True):
                     if new_name:
                         with st.spinner('Creating your profile...'):
-                            img = np.array(Image.open(photo_source))
-                            encodings = get_face_embeddings(img)
-                            if encodings:
-                                face_emb = encodings[0].tolist()
+                            reg_img = st.session_state.get('captured_registration_photo')
+                            if reg_img is None and photo_source:
+                                reg_img = np.array(Image.open(photo_source))
 
-                                voice_emb = None
-                                if audio_data:
-                                    voice_emb = get_voice_embedding(audio_data.read())
+                            if reg_img is not None:
+                                encodings = get_face_embeddings(reg_img)
+                                if encodings:
+                                    face_emb = encodings[0].tolist()
 
-                                response_data = create_student(new_name, face_embedding=face_emb, voice_embedding=voice_emb)
+                                    voice_emb = None
+                                    if audio_data:
+                                        voice_emb = get_voice_embedding(audio_data.read())
 
-                                if response_data:
-                                    train_classifier()
-                                    st.session_state.is_logged_in = True
-                                    st.session_state.user_role = 'student'
-                                    st.session_state.student_data = response_data[0]
-                                    st.toast(f'Profile created! Hi {new_name}! 🎉')
-                                    time.sleep(1)
-                                    st.rerun()
+                                    response_data = create_student(new_name, face_embedding=face_emb, voice_embedding=voice_emb)
+
+                                    if response_data:
+                                        train_classifier()
+                                        st.session_state.is_logged_in = True
+                                        st.session_state.user_role = 'student'
+                                        st.session_state.student_data = response_data[0]
+                                        st.session_state.show_student_registration = False
+                                        st.toast(f'Profile created! Hi {new_name}! 🎉')
+                                        time.sleep(1)
+                                        st.rerun()
+                                else:
+                                    st.error('Could not capture facial features — please retake your photo.')
                             else:
-                                st.error('Could not capture facial features — please retake your photo.')
+                                st.error('No photo found — please take a photo first.')
                     else:
                         st.warning('Please enter your name to continue.')
 
