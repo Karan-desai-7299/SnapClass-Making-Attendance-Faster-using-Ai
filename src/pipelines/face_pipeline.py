@@ -24,15 +24,38 @@ def load_dlib_models():
 
 def get_face_embeddings(image_np):
     detector, sp, facerec = load_dlib_models()
-    faces = detector(image_np, 1)
+
+    if image_np is None:
+        return []
+
+    # Ensure 3-channel RGB uint8 image for dlib
+    if len(image_np.shape) == 2:
+        image_np = np.stack((image_np,) * 3, axis=-1)
+    elif len(image_np.shape) == 3 and image_np.shape[2] == 4:
+        image_np = image_np[:, :, :3]
+    elif len(image_np.shape) == 3 and image_np.shape[2] == 1:
+        image_np = np.repeat(image_np, 3, axis=2)
+
+    image_np = np.ascontiguousarray(image_np, dtype=np.uint8)
+
+    # Detect faces: scale 0 first (fast & accurate for closeup selfies),
+    # then scale 1 if no face is found (for smaller faces in classroom photos)
+    try:
+        faces = detector(image_np, 0)
+        if len(faces) == 0:
+            faces = detector(image_np, 1)
+    except Exception:
+        faces = []
 
     encodings = []
-
     for face in faces:
-        shape = sp(image_np, face)
-        face_descriptor = facerec.compute_face_descriptor(image_np, shape, 1)  # 128 embedding
+        try:
+            shape = sp(image_np, face)
+            face_descriptor = facerec.compute_face_descriptor(image_np, shape, 1)  # 128 embedding
+            encodings.append(np.array(face_descriptor))
+        except Exception:
+            continue
 
-        encodings.append(np.array(face_descriptor))
     return encodings
 
 
@@ -72,7 +95,10 @@ def train_classifier():
 
 
 def predict_attendance(class_image_np):
-    encodings = get_face_embeddings(class_image_np)
+    try:
+        encodings = get_face_embeddings(class_image_np)
+    except Exception:
+        return {}, [], 0
 
     detected_student = {}
 
@@ -85,7 +111,7 @@ def predict_attendance(class_image_np):
     y_train = model_data['y']
 
     all_students = sorted(list(set(y_train)))
-    resemblance_threshold = 0.45  # Strict 1:1 dlib face recognition threshold
+    resemblance_threshold = 0.50  # Balanced dlib face recognition threshold
 
     for encoding in encodings:
         # Calculate Euclidean distances between current face encoding and all registered student embeddings
