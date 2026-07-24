@@ -189,52 +189,62 @@ def teacher_tab_take_attendance():
         if st.button('⚡ Run Face Analysis', use_container_width=True, type='secondary', disabled=not has_photos, key='run_analysis_btn'):
             with st.spinner('Deep scanning classroom photos...'):
                 all_detected_ids = {}
+                scan_diagnostics = []
 
                 for idx, img in enumerate(st.session_state.attendance_images):
                     img_np = np.array(img.convert('RGB'))
                     detected = {}
+                    num_faces = 0
                     try:
                         res = predict_attendance(img_np)
-                        if res and isinstance(res, tuple) and len(res) > 0:
+                        if res and isinstance(res, tuple) and len(res) >= 3:
+                            detected, _, num_faces = res
+                        elif res and isinstance(res, tuple) and len(res) > 0:
                             detected = res[0]
                     except Exception as e:
                         st.error(f"Error scanning Photo {idx + 1}: {str(e)}")
+
+                    scan_diagnostics.append(f"Photo {idx+1}: {num_faces} face(s) detected, {len(detected)} matched")
 
                     if detected:
                         for sid in detected.keys():
                             student_id = int(sid)
                             all_detected_ids.setdefault(student_id, []).append(f"Photo {idx + 1}")
 
+            # Show diagnostics OUTSIDE spinner so they render
+            with st.expander("🔍 Scan Diagnostics (click to see)", expanded=True):
+                for line in scan_diagnostics:
+                    st.write(line)
 
-                enrolled_res = supabase.table('subject_students').select("*, students(*)").eq('subject_id', selected_subject_id).execute()
-                enrolled_students = enrolled_res.data
+            enrolled_res = supabase.table('subject_students').select("*, students(*)").eq('subject_id', selected_subject_id).execute()
+            enrolled_students = enrolled_res.data
 
-                if not enrolled_students:
-                    st.warning('No students enrolled in this course.')
-                else:
-                    results, attendance_to_log = [], []
-                    current_timestamp = get_current_timestamp_utc()
+            if not enrolled_students:
+                st.warning('No students enrolled in this course.')
+            else:
+                results, attendance_to_log = [], []
+                current_timestamp = get_current_timestamp_utc()
 
-                    for node in enrolled_students:
-                        student = node['students']
-                        sources = all_detected_ids.get(int(student['student_id']), [])
-                        is_present = len(sources) > 0
+                for node in enrolled_students:
+                    student = node['students']
+                    sources = all_detected_ids.get(int(student['student_id']), [])
+                    is_present = len(sources) > 0
 
-                        results.append({
-                            "Name": student['name'],
-                            "ID": student['student_id'],
-                            "Source": ", ".join(sources) if is_present else "-",
-                            "Status": "✅ Present" if is_present else "❌ Absent"
-                        })
+                    results.append({
+                        "Name": student['name'],
+                        "ID": student['student_id'],
+                        "Source": ", ".join(sources) if is_present else "-",
+                        "Status": "✅ Present" if is_present else "❌ Absent"
+                    })
 
-                        attendance_to_log.append({
-                            'student_id': student['student_id'],
-                            'subject_id': selected_subject_id,
-                            'timestamp': current_timestamp,
-                            'is_present': bool(is_present)
-                        })
+                    attendance_to_log.append({
+                        'student_id': student['student_id'],
+                        'subject_id': selected_subject_id,
+                        'timestamp': current_timestamp,
+                        'is_present': bool(is_present)
+                    })
 
-                    attendance_result_dialog(pd.DataFrame(results), attendance_to_log)
+                attendance_result_dialog(pd.DataFrame(results), attendance_to_log)
 
     with c3:
         if st.button('🎙️ Voice Attendance', type='primary', use_container_width=True, key='voice_attendance_btn'):

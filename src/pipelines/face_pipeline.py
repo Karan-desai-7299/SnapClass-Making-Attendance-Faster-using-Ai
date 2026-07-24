@@ -184,7 +184,7 @@ def predict_attendance(class_image_np):
         return detected_student, [], len(encodings)
 
     all_students = sorted(list(set(y_train)))
-    resemblance_threshold = 0.62  # dlib benchmark standard threshold for 128D embeddings
+    resemblance_threshold = 0.70  # Permissive threshold for group/outdoor classroom photos
 
     for encoding in encodings:
         distances = [np.linalg.norm(np.array(student_emb) - np.array(encoding)) for student_emb in X_train]
